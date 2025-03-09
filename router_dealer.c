@@ -1,4 +1,4 @@
-/* Operating Systems  (2INCO)  Practical Assignment
+/*(2INCO)  Practical Assignment
  * Interprocess Communication
  *
  * STUDENT_NAME_1 (STUDENT_NR_1)
@@ -85,10 +85,11 @@ bool is_process_alive(pid_t pid)
 
 bool is_client_alive(pid_t client_pid) {
   if (kill(client_pid, 0) == 0) {
-    // client is alive
+        return true;
     } else if (errno == ESRCH) {
-        // client does not exist
+        return false;
     }
+    return true;
 }
 
 int main(int argc, char *argv[])
@@ -127,6 +128,7 @@ int main(int argc, char *argv[])
     //    2) dealer -> worker1 (S1)
     //    3) dealer -> worker2 (S2)
     //    4) worker -> dealer (Rep)
+    attr_req.mq_flags = O_NONBLOCK;
     mqd_t qd_req = mq_open(client2dealer_name, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr_req);
     mqd_t qd_s1 = mq_open(dealer2worker1_name, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr_s1);
     mqd_t qd_s2 = mq_open(dealer2worker2_name, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr_s2);
@@ -150,7 +152,7 @@ int main(int argc, char *argv[])
         // In child: client code
         // e.g., execlp("./client", "client", (char*)NULL);
         // or do some test code that sends messages to qd_req...
-        execlp("./client", "client", (char*)NULL);
+        execlp("./client", "client", client2dealer_name, (char*)NULL);
         // Sleep or exit to simulate client finishing
         sleep(2);
         exit(0);
@@ -161,7 +163,7 @@ int main(int argc, char *argv[])
     //    and one worker_s2 that reads from S2.
     //    In practice, you'd do execlp("./worker_s1", ...), or similar.
     pid_t worker1_pids[N_SERV1];
-    for(int i=1;i<=N_SERV1; ++ i) {
+    for(int i=0;i<N_SERV1; ++ i) {
       pid_t worker1_pid = fork();
       if (worker1_pid < 0) {
           perror("fork worker1 failed");
@@ -170,7 +172,11 @@ int main(int argc, char *argv[])
       if (worker1_pid == 0) {
           // Child: Worker1 code
           // Example: open S1 for reading, Rep for writing
-          execlp("./worker_s1", "worker_s1", (char*)NULL);
+          execlp("./worker_s1",
+       "worker_s1",        // argv[0] in the new process
+       dealer2worker1_name,        // argv[1] (S1 queue)
+       worker2dealer_name,       // argv[2] (Rsp queue)
+    (char*)NULL);
           // Close and exit
           exit(0);
       } else {
@@ -179,7 +185,7 @@ int main(int argc, char *argv[])
     }
 
     pid_t worker2_pids[N_SERV2];
-    for(int i=1;i<=N_SERV2; ++ i) {
+    for(int i=0;i<N_SERV2; ++ i) {
       pid_t worker2_pid = fork();
       if (worker2_pid < 0) {
           perror("fork worker2 failed");
@@ -188,7 +194,11 @@ int main(int argc, char *argv[])
       if (worker2_pid == 0) {
           // Child: Worker1 code
           // Example: open S1 for reading, Rep for writing
-          execlp("./worker_s2", "worker_s2", (char*)NULL);
+          execlp("./worker_s2",
+       "worker_s2",        // argv[0] in the new process
+       dealer2worker2_name,        // argv[1] (S1 queue)
+       worker2dealer_name,       // argv[2] (Rsp queue)
+    (char*)NULL);
           // Close and exit
           exit(0);
       } else {
@@ -254,8 +264,12 @@ int main(int argc, char *argv[])
 
     // 10) Wait for each child to terminate
     waitpid(client_pid, NULL, 0);
-    waitpid(worker1_pid, NULL, 0);
-    waitpid(worker2_pid, NULL, 0);
+    for(int i=0;i<N_SERV1;++i) {
+        waitpid(worker1_pids[i], NULL, 0);
+    }
+    for(int i=0;i<N_SERV2;++i) {
+        waitpid(worker2_pids[i], NULL, 0);
+    }
 
     // 11) Clean up the message queues
     mq_close(qd_req);
@@ -268,6 +282,5 @@ int main(int argc, char *argv[])
     mq_unlink(worker2dealer_name);
 
     fprintf(stderr, "Dealer: Cleaned up all queues. Exiting.\n");
-    return 0;
+    return 0;
 }
-*

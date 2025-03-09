@@ -9,7 +9,28 @@
 #include "request.h"
 
 // Array of requests
-const Request requests[] = { {1, 26, 1}, {2, 5, 2}, {3, 10, 2}, {5, 13, 1}, {4, 3, 1} };
+const Request requests[] = {
+    {1,  26, 1},
+    {2,  5,  2},
+    {3,  10, 2},
+    {4,  42, 1},
+    {5,  31, 2},
+    {6,  12, 1},
+    {7,  19, 2},
+    {8,  7,  1},
+    {9,  50, 2},
+    {10, 3,  1},
+    {11, 25, 2},
+    {12, 8,  2},
+    {13, 14, 1},
+    {14, 44, 1},
+    {15, 27, 2},
+    {16, 100,2},
+    {17, 45, 1},
+    {18, 6,  2},
+    {19, 9,  1},
+    {20, 33, 2}
+};
 
 // Places the information of the next request in the parameters sent by reference.
 // Returns NO_REQ if there is no request to make.
@@ -17,7 +38,6 @@ const Request requests[] = { {1, 26, 1}, {2, 5, 2}, {3, 10, 2}, {5, 13, 1}, {4, 
 int getNextRequest(int* jobID, int* data, int* serviceID) {
 	static int i = 0;
 	static int N_REQUESTS = sizeof(requests) / sizeof(Request);
-
 	if (i >= N_REQUESTS) 
 		return NO_REQ;
 
@@ -26,5 +46,4 @@ int getNextRequest(int* jobID, int* data, int* serviceID) {
 	*serviceID = requests[i].service;		
 	++i;
 	return NO_ERR;
-		
 }

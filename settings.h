@@ -5,7 +5,7 @@
 // settings for interprocess communications
 // (note: be sure that MQ_MAX_MESSAGES <= /proc/sys/fs/mqueue/msg_max (= 10 on most systems))
 #define N_SERV1    	 4
-#define N_SERV2    	 3
+#define N_SERV2    	 0
 #define MQ_MAX_MESSAGES 	 10
 
 

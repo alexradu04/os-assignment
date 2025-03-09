@@ -29,14 +29,14 @@
  * You can add/remove fields depending on what data you need. 
  */
 typedef struct {
-    char  id;
+    int  id;
     int  serviceType;
     // text field for passing strings
     int input;
 }RequestMessage;
 
 typedef struct {
-    char  id;
+    int  id;
     int result;
 } ResponseMessage;
 #endif
