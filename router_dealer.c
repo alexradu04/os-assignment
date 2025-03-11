@@ -84,12 +84,23 @@ bool is_process_alive(pid_t pid)
 }
 
 bool is_client_alive(pid_t client_pid) {
-  if (kill(client_pid, 0) == 0) {
-        return true;
-    } else if (errno == ESRCH) {
-        return false;
+    int status;
+    
+    // Check if the process has already terminated (non-blocking)
+    if (waitpid(client_pid, &status, WNOHANG) > 0) {
+        return false;  // Process has exited
     }
-    return true;
+
+    // Check if process exists
+    if (kill(client_pid, 0) == 0) {
+        return true;  // Process is still alive
+    } else if (errno == ESRCH) {
+        return false; // Process does not exist
+    } else if (errno == EPERM) {
+        return true;  // Process exists but we lack permission to check
+    }
+    
+    return false;  // Default to false for unexpected errors
 }
 
 int main(int argc, char *argv[])
@@ -154,7 +165,7 @@ int main(int argc, char *argv[])
         // or do some test code that sends messages to qd_req...
         execlp("./client", "client", client2dealer_name, (char*)NULL);
         // Sleep or exit to simulate client finishing
-        sleep(2);
+        usleep(1);
         exit(0);
     }
 
@@ -205,65 +216,92 @@ int main(int argc, char *argv[])
         worker2_pids[i] = worker2_pid;
       }
     }
-
-    while (true) {
-    // Receive from qd_req in non-blocking mode
-    if (mq_receive(qd_req, (char *)&req, sizeof(req), NULL) == -1) {
-        if (errno == EAGAIN) {
-            // No request is currently available.
-            // We do NOT break; we just skip routing.
-        } else {
-            perror("mq_receive qd_req");
-        }
-    } else {
-        // We got a request (req) successfully, so handle it:
-        if (req.serviceType == 1) {
-            mq_send(qd_s1, (char *)&req, sizeof(req), 0);
-        } else if (req.serviceType == 2) {
-            mq_send(qd_s2, (char *)&req, sizeof(req), 0);
-        } else {
-            printf("Invalid service type\n");
-        }
-    }
-
-    // 2) Receive from qd_rep in non-blocking mode
-    if (mq_receive(qd_rep, (char *)&rsp, sizeof(rsp), NULL) == -1) {
-        if (errno == EAGAIN) {
-            // No response is currently available.
-        } else {
-            perror("mq_receive qd_rep");
-        }
-    } else {
-        // We got a response (rsp)
-        printf("Dealer got response: statusCode=%d, msg='%s'\n",
-               rsp.id, rsp.result);
-    }
-
-    // 3) Check if client is alive:
-    if (!is_client_alive(client_pid)) {
-        // The client is gone, time to shut down
-        break;
-    }
-}
     
-
-
-
-
-
+    while (true) {
+        // printf("pula router\n");
+            // Receive from qd_req in non-blocking mode
+            if (mq_receive(qd_req, (char *)&req, sizeof(req), NULL) == -1) {
+                if (errno == EAGAIN) {
+                    printf("client queue empty\n");
+                    // No request is currently available.
+                    // We do NOT break; we just skip routing.
+                } else {
+                    perror("mq_receive qd_req");
+                }
+            } else {
+                // We got a request (req) successfully, so handleentAlive){reqCount++;}
+                if (req.serviceType == 1) {
+                    mq_send(qd_s1, (char *)&req, sizeof(req), 0);
+                } else if (req.serviceType == 2) {
+                    mq_send(qd_s2, (char *)&req, sizeof(req), 0);
+                } else {
+                    printf("Invalid service type\n");
+                }
+            }
+                    // 2) Receive from qd_rep in non-blocking mode
+            if (mq_receive(qd_rep, (char *)&rsp, sizeof(rsp), NULL) == -1) {
+                if (errno == EAGAIN) {
+                    // No response is currently available.
+                } else {
+                    perror("mq_receive qd_rep");
+                }
+            } else {
+                // We got a response (rsp)
+                printf("%d -> %d\n",
+                     rsp.id, rsp.result);
+            }
+            // printf("%d", rsp.id);
+            // 3) Check if client is alive:
+            struct mq_attr attr;
+            mq_getattr(qd_req, &attr);
+            if (!is_client_alive(client_pid) && attr.mq_curmsgs == 0) {
+                // printf("client: Client has terminated.\n");
+                // The client is gone, time to shut down
+                // clientAlive = false;
+                break;
+            }
+    }
+    
     // 8) Wait until the client has stopped
     //    In a loop, you could do something like:
+    // printf("client: Client has terminated.\n");
     while (is_process_alive(client_pid)) {
         // Poll for more requests, route them, etc.
         // This code is just a stub:
-        sleep(1);
-    }
+        usleep(1);
+    
 
     // 9) Wait for workers to finish any outstanding jobs, 
     //    or send them a termination message if you prefer.
 
     // 10) Wait for each child to terminate
     waitpid(client_pid, NULL, 0);
+    printf("client: Client has terminated.\n");
+    for (int i = 0; i < N_SERV1; i++) {
+        RequestMessage shutdown_request;
+        shutdown_request.id = -1;   // Sentinel value for termination
+        shutdown_request.serviceType = 0;  // Any value (ignored by worker)
+        shutdown_request.input = 0; // Any value (ignored by worker)
+
+        if (mq_send(qd_s1, (const char*)&shutdown_request, sizeof(shutdown_request), 0) == -1) {
+            perror("client: mq_send (shutdown request S1) failed");
+        } else {
+            printf("client: Sent shutdown request %d/%d to worker1 queue.\n", i + 1, N_SERV1);
+        }
+    }
+
+    for (int i = 0; i < N_SERV2; i++) {
+        RequestMessage shutdown_request;
+        shutdown_request.id = -1;   // Sentinel value for termination
+        shutdown_request.serviceType = 0;  // Any value (ignored by worker)
+        shutdown_request.input = 0; // Any value (ignored by worker)
+
+        if (mq_send(qd_s2, (const char*)&shutdown_request, sizeof(shutdown_request), 0) == -1) {
+            perror("client: mq_send (shutdown request S2) failed");
+        } else {
+            printf("client: Sent shutdown request %d/%d to worker2 queue.\n", i + 1, N_SERV2);
+        }
+    }
     for(int i=0;i<N_SERV1;++i) {
         waitpid(worker1_pids[i], NULL, 0);
     }
@@ -283,4 +321,5 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "Dealer: Cleaned up all queues. Exiting.\n");
     return 0;
+}
 }

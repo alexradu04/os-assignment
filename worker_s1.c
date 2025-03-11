@@ -26,12 +26,6 @@
 #include "messages.h"   // Suppose this defines MQ_REQUEST_MESSAGE, MQ_RESPONSE_MESSAGE
 #include "service1.h"   // For any Service-1-specific logic (if needed)
 
-/*
- * rsleep(int t):
- * The calling thread will be suspended for a random amount of time
- * between 0 and t microseconds.
- * At the first call, the random generator is seeded with the current time.
- */
 static void rsleep (int t)
 {
     static bool first_call = true;
@@ -79,44 +73,47 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    printf("worker1: listening on '%s', will respond via '%s'.\n",
-           s1QueueName, rspQueueName);
+    // printf("worker1: listening on '%s', will respond via '%s'.\n",
+    //        s1QueueName, rspQueueName);
     RequestMessage req;
     ssize_t bytes_read;
     // 3) Repeatedly read, process, and send results
+    int cnt = 0;
     while (true)
     {
         // printf("BEFORE\n");
         struct mq_attr attr;
         mq_getattr(mq_s1, &attr);  // Get the current attributes of the queue
 
+        // printf("BEFORE\n");
         if (attr.mq_curmsgs == 0) {
-            usleep(100000); // Sleep for 100ms to avoid busy-waiting
+            // usleep(100000); // Sleep for 100ms to avoid busy-waiting
+            // break;
             continue;
         }
-        bytes_read = mq_receive(mq_s1, (char*)&req, attr.mq_msgsize, NULL);
+
+        size_t expected_size = sizeof(RequestMessage);
+
+        
+        // printf("mq_msgsize = %ld, expected size = %ld\n", attr.mq_msgsize, expected_size);
+        // printf("MID\n");
+        memset(&req, 0, sizeof(RequestMessage));
+        bytes_read = mq_receive(mq_s1, (char*)&req, sizeof(RequestMessage), NULL);
         // a) Read one job from the S1 queue
         
-        printf("AFTER\n");
-        if (bytes_read == -1) {
-            if (errno == EINTR) {
-                // If interrupted by a signal, just retry
-                continue;
-            }
-            perror("worker1: mq_receive(S1) failed, stopping");
-            break;
-        }
+        // printf("AFTER\n");
+        // bytes_read = mq_receive(mq_s1, (char*)&req, sizeof(RequestMessage), NULL);
         if (bytes_read < (ssize_t)sizeof(req)) {
-            fprintf(stderr, "worker1: incomplete message received, stopping.\n");
+            // fprintf(stderr, "worker1: incomplete message received, stopping.\n");
             break;
         }
 
         // Show that we've received a job
-        printf("worker1: received job: a=%d, b=%d, c='%d'\n",
-               req.id, req.serviceType, req.input);
+        // printf("worker1: received job: a=%d, b=%d, c='%d'\n",
+        //        req.id, req.serviceType, req.input);
 
         // b) Sleep a random time (simulate work)
-        rsleep(10000);  // up to 10000 microseconds (10ms)
+        rsleep(100000);  // up to 10000 microseconds (10ms)
 
         // c) Do the job - example: fill in a response
         ResponseMessage rsp;
@@ -129,8 +126,9 @@ int main(int argc, char *argv[])
             perror("worker_s1: mq_send(Rsp) failed");
             break;
         }
-        printf("worker_s1: completed job ID=%d -> result=%d\n",
-               rsp.id, rsp.result);
+        // cnt++;
+        // printf("cnt: %d worker_s1: completed job ID=%d -> result=%d\n",cnt ,
+        //        rsp.id, rsp.result);
 
         /*
          * If you want a special 'shutdown' or 'stop' condition,
@@ -140,6 +138,10 @@ int main(int argc, char *argv[])
          *     break;
          * }
          */
+        if (req.id < 0) {  // sentinel
+              printf("worker_s1: shutdown request received.\n");
+              break;
+          }
     }
 
     // 7) Close the queues and finish

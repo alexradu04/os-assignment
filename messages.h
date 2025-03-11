@@ -28,15 +28,19 @@
  * Example: A request message from the client to the dealer.
  * You can add/remove fields depending on what data you need. 
  */
+#pragma pack(1)
 typedef struct {
     int  id;
     int  serviceType;
     // text field for passing strings
     int input;
 }RequestMessage;
+#pragma pack()
 
+#pragma pack(1)
 typedef struct {
     int  id;
     int result;
 } ResponseMessage;
+#pragma pack()
 #endif

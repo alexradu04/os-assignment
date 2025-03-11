@@ -26,20 +26,6 @@
 #include "messages.h"   // Suppose this defines MQ_REQUEST_MESSAGE, MQ_RESPONSE_MESSAGE
 #include "request.h"    // Suppose this offers getNextRequest() or similar
 
-/*
- * rsleep(t):
- *  This function can implement a short 'randomized' sleep or any 
- *  artificially introduced delay if desired. If you don't need it,
- *  you can remove calls to rsleep() from the code below.
- */
-static void rsleep (int t)
-{
-    // Example: sleep for a random fraction of t seconds
-    // or just do a regular sleep(t).
-    // For demonstration, let's do a simple sleep:
-    sleep(t);
-}
-
 int main (int argc, char * argv[])
 {
     
@@ -64,7 +50,7 @@ int main (int argc, char * argv[])
         perror("client: mq_open (Req queue) failed");
         exit(1);
     }
-    printf("client: opened queue '%s' for writing.\n", reqQueueName);
+    // printf("client: opened queue '%s' for writing.\n", reqQueueName);
 
     // 2) Repeatedly get the next request and send it
     //    Suppose request.h has a function like:
@@ -77,29 +63,30 @@ int main (int argc, char * argv[])
         // Hypothetical function that populates 'req' 
         // and returns 1 while there are requests left,
         // or 0 if no more requests to process.
-        usleep(100000);
+        usleep(1);
         int hasRequest = getNextRequest(&req.id, &req.input, &req.serviceType); 
         if (hasRequest) {
             // No more requests to send
-            printf("client: no more requests to send, exiting loop.\n");
+            // printf("client: no more requests to send, exiting loop.\n");
             break;
         }
 
         // Optionally do a short random sleep or delay
-        rsleep(1);
+        usleep(1);
 
         // Send the request to the Req queue
         if (mq_send(mq_fd_request, (const char *)&req, sizeof(req), 0) == -1) {
             perror("client: mq_send failed");
         } else {
-            printf("client: sent request with a=%d, b=%d, c='%d'\n",
-                   req.id, req.serviceType, req.input);
+            // printf("client: sent request with a=%d, b=%d, c='%d'\n",
+            //        req.id, req.serviceType, req.input);
         }
     }
 
     // 3) Close the message queue
     mq_close(mq_fd_request);
 
-    printf("client: all done, exiting.\n");
+    // printf("client: all done, exiting.\n");
+    exit(0);
     return 0;
 }

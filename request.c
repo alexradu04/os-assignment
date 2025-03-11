@@ -29,8 +29,19 @@ const Request requests[] = {
     {17, 45, 1},
     {18, 6,  2},
     {19, 9,  1},
-    {20, 33, 2}
+    {20, 33, 2},
+    {21, 15, 1},
+    {22, 60, 2},
+    {23, 21, 1},
+    {24, 13, 2},
+    {25, 89, 1},
+    {26, 55, 2},
+    {27, 77, 1},
+    {28, 29, 2},
+    {29, 38, 1},
+    {30, 20, 2}
 };
+
 
 // Places the information of the next request in the parameters sent by reference.
 // Returns NO_REQ if there is no request to make.
