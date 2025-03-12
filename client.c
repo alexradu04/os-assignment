@@ -2,8 +2,9 @@
  * Operating Systems  (2INCO)  Practical Assignment
  * Interprocess Communication
  *
- * STUDENT_NAME_1 (STUDENT_NR_1)
- * STUDENT_NAME_2 (STUDENT_NR_2)
+ * Alexandru Radu (1953451)
+ * Sebastian Georgescu (1926209)
+ * Teodor Krajc (STUDENT_NR_3)
  *
  * Grading:
  * Your work will be evaluated based on the following criteria:
@@ -19,12 +20,12 @@
 #include <stdbool.h>
 #include <errno.h>      // for perror()
 #include <unistd.h>     // for getpid()
-#include <mqueue.h>     // for mq_open, mq_send, mq_close
+#include <mqueue.h>     // for mq-stuff
 #include <time.h>       // for time()
-#include <string.h>     // for strncpy, etc.
+#include <string.h>     
 
-#include "messages.h"   // Suppose this defines MQ_REQUEST_MESSAGE, MQ_RESPONSE_MESSAGE
-#include "request.h"    // Suppose this offers getNextRequest() or similar
+#include "messages.h"   
+#include "request.h"    
 
 int main (int argc, char * argv[])
 {
@@ -42,8 +43,6 @@ int main (int argc, char * argv[])
         fprintf(stderr, "Usage: %s <ReqQueueName>\n", argv[0]);
         exit(1);
     }
-
-    // 1) Open the existing request queue in WRITE-ONLY mode
     const char* reqQueueName = argv[1];
     mqd_t mq_fd_request = mq_open(reqQueueName, O_WRONLY);
     if (mq_fd_request == (mqd_t)-1) {
@@ -52,29 +51,18 @@ int main (int argc, char * argv[])
     }
     // printf("client: opened queue '%s' for writing.\n", reqQueueName);
 
-    // 2) Repeatedly get the next request and send it
-    //    Suppose request.h has a function like:
-    //      int getNextRequest(MQ_REQUEST_MESSAGE* outReq);
-    //    that returns 1 if there is a request, 0 if not.
-
     RequestMessage req;
     while (true)
     {
-        // Hypothetical function that populates 'req' 
-        // and returns 1 while there are requests left,
-        // or 0 if no more requests to process.
         usleep(1);
         int hasRequest = getNextRequest(&req.id, &req.input, &req.serviceType); 
         if (hasRequest) {
-            // No more requests to send
             // printf("client: no more requests to send, exiting loop.\n");
             break;
         }
 
-        // Optionally do a short random sleep or delay
         usleep(1);
 
-        // Send the request to the Req queue
         if (mq_send(mq_fd_request, (const char *)&req, sizeof(req), 0) == -1) {
             perror("client: mq_send failed");
         } else {
@@ -83,7 +71,6 @@ int main (int argc, char * argv[])
         }
     }
 
-    // 3) Close the message queue
     mq_close(mq_fd_request);
 
     // printf("client: all done, exiting.\n");
