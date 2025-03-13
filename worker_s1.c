@@ -66,9 +66,13 @@ int main(int argc, char *argv[])
     //        s1QueueName, rspQueueName);
     RequestMessage req;
     ssize_t inputRead;
-    int cnt = 0;
+    time_t beforeWhile = time(NULL);
     while (true)
     {
+        if((time(NULL) - beforeWhile >= 2))
+        {
+            exit(0);
+        }
         // printf("BEFORE\n");
         struct mq_attr attr;
         mq_getattr(mq_s1, &attr);  

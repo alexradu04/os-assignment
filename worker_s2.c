@@ -69,8 +69,13 @@ int main(int argc, char *argv[])
     ssize_t bytes_read;
     
     // int cnt=0;
+    time_t beforeWhile = time(NULL);
     while (true)
     {
+        if((time(NULL) - beforeWhile >= 2))
+        {
+            exit(0);
+        }
         struct mq_attr attr;
         mq_getattr(mq_s2, &attr);  
         
