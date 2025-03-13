@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
         usleep(1);
         exit(0);
     }
-    exit(0);
+    // exit(0);
     pid_t worker1_pids[N_SERV1];
     for(int i=0;i<N_SERV1; ++ i) {
       pid_t worker1_pid = fork();
