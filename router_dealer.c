@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <unistd.h>    // for execlp
 #include <mqueue.h>    // for mq
+#include <time.h>
 
 #include "settings.h"  
 #include "messages.h"  
