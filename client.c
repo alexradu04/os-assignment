@@ -52,8 +52,13 @@ int main (int argc, char * argv[])
     // printf("client: opened queue '%s' for writing.\n", reqQueueName);
 
     RequestMessage req;
+    time_t beforeWhile = time(NULL);
     while (true)
     {
+        if((time(NULL) - beforeWhile >= 2))
+        {
+            exit(0);
+        }
         usleep(1);
         int hasRequest = getNextRequest(&req.id, &req.input, &req.serviceType); 
         // printf("%d\n", hasRequest);
