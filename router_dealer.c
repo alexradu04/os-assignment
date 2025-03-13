@@ -190,6 +190,7 @@ int main(int argc, char *argv[])
         worker2_pids[i] = worker2_pid;
       }
     }
+    exit(0);
     time_t beforeWhile = time(NULL);
     while ((true) ){
         if((time(NULL) - beforeWhile >= 2))
