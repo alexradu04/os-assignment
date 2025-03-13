@@ -92,6 +92,8 @@ bool is_client_alive(pid_t client_pid) {
 
 int main(int argc, char *argv[])
 {
+
+    exit(0);
     if (argc != 1)
     {
         fprintf(stderr, "%s: invalid arguments\n", argv[0]);
