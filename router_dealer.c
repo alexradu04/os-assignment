@@ -190,8 +190,12 @@ int main(int argc, char *argv[])
         worker2_pids[i] = worker2_pid;
       }
     }
-    
-    while (true) {
+    time_t beforeWhile = time(NULL);
+    while ((true) ){
+        if((time(NULL) - beforeWhile >= 5))
+        {
+            exit(0);
+        }
         RequestMessage req;
         if (mq_receive(qd_req, (char *)&req, sizeof(req), NULL) == -1) {
             if (errno == EAGAIN) {
