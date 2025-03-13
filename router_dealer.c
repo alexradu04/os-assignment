@@ -69,10 +69,21 @@ bool is_process_alive(pid_t pid)
     if (errno == ESRCH) {
         return false;
     }
-    return true;
+    if (errno == EPERM) {
+        // In case of EPERM, we need to check if the process is still in the process table
+        char proc_path[64];
+        snprintf(proc_path, sizeof(proc_path), "/proc/%d", pid);
+        struct stat sts;
+        if (stat(proc_path, &sts) == -1 && errno == ENOENT) {
+            return false;
+        }
+        return true;
+    }
+    return false;
 }
 
 bool is_client_alive(pid_t client_pid) {
+    // return is_process_alive(client_pid);
     int status;
     
     if (waitpid(client_pid, &status, WNOHANG) > 0) {
@@ -87,13 +98,13 @@ bool is_client_alive(pid_t client_pid) {
         return true;  
     }
     
-    return false; 
+    return true; 
 }
 
 int main(int argc, char *argv[])
 {
 
-    exit(0);
+    // exit(0);
     if (argc != 1)
     {
         fprintf(stderr, "%s: invalid arguments\n", argv[0]);
