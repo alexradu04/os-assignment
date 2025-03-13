@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
     }
     time_t beforeWhile = time(NULL);
     while ((true) ){
-        if((time(NULL) - beforeWhile >= 5))
+        if((time(NULL) - beforeWhile >= 2))
         {
             exit(0);
         }
