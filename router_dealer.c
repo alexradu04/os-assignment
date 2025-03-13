@@ -117,10 +117,10 @@ int main(int argc, char *argv[])
 
     // Create the queues:
     attr_req.mq_flags = O_NONBLOCK;
-    mqd_t qd_req = mq_open(client2dealer_name, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr_req);
-    mqd_t qd_s1 = mq_open(dealer2worker1_name, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr_s1);
-    mqd_t qd_s2 = mq_open(dealer2worker2_name, O_WRONLY | O_CREAT | O_EXCL, 0600, &attr_s2);
-    mqd_t qd_rep = mq_open(worker2dealer_name, O_RDONLY | O_CREAT | O_EXCL, 0600, &attr_rep);
+    mqd_t qd_req = mq_open(client2dealer_name, O_RDONLY | O_CREAT | O_EXCL | O_NONBLOCK, 0600, &attr_req);
+    mqd_t qd_s1 = mq_open(dealer2worker1_name, O_WRONLY | O_CREAT | O_EXCL | O_NONBLOCK, 0600, &attr_s1);
+    mqd_t qd_s2 = mq_open(dealer2worker2_name, O_WRONLY | O_CREAT | O_EXCL | O_NONBLOCK, 0600, &attr_s2);
+    mqd_t qd_rep = mq_open(worker2dealer_name, O_RDONLY | O_CREAT | O_EXCL | O_NONBLOCK, 0600, &attr_rep);
 
     // debug
     // show_queue_info(qd_req);
@@ -178,42 +178,67 @@ int main(int argc, char *argv[])
     }
     
     while (true) {
-            if (mq_receive(qd_req, (char *)&req, sizeof(req), NULL) == -1) {
-                if (errno == EAGAIN) {
-                    printf("client queue empty\n");
-                    // No request available.
-                } else {
-                    perror("mq_receive qd_req");
-                }
+        RequestMessage req;
+        if (mq_receive(qd_req, (char *)&req, sizeof(req), NULL) == -1) {
+            if (errno == EAGAIN) {
+                usleep(50000);
             } else {
+                perror("dealer: mq_receive qd_req");
+            }
+        } else {
+            if (req.id >= 0) {
                 if (req.serviceType == 1) {
-                    mq_send(qd_s1, (char *)&req, sizeof(req), 0);
+                    if (mq_send(qd_s1, (char *)&req, sizeof(req), 0) == -1) {
+                        perror("dealer: mq_send qd_s1");
+                    }
                 } else if (req.serviceType == 2) {
-                    mq_send(qd_s2, (char *)&req, sizeof(req), 0);
+                    if (mq_send(qd_s2, (char *)&req, sizeof(req), 0) == -1) {
+                        perror("dealer: mq_send qd_s2");
+                    }
                 } else {
-                    printf("Invalid service type\n");
-                }
-            }
-            if (mq_receive(qd_rep, (char *)&rsp, sizeof(rsp), NULL) == -1) {
-                if (errno == EAGAIN) {
-                } else {
-                    perror("mq_receive qd_rep");
+                    fprintf(stderr, "dealer: invalid serviceType %d\n", req.serviceType);
                 }
             } else {
-                printf("%d -> %d\n",
-                     rsp.id, rsp.result);
+                fprintf(stderr, "dealer: received negative ID request \n");
             }
-            // printf("%d", rsp.id);
+        }
 
-            struct mq_attr attr;
-            mq_getattr(qd_req, &attr);
-            if (!is_client_alive(client_pid) && attr.mq_curmsgs == 0) {
-                // printf("client: Client has terminated.\n");
-                // clientAlive = false;
-                break;
+        ResponseMessage rsp;
+        if (mq_receive(qd_rep, (char *)&rsp, sizeof(rsp), NULL) == -1) {
+            if (errno != EAGAIN) {
+                perror("dealer: mq_receive qd_rep");
             }
+        } else {
+            printf("%d -> %d\n", rsp.id, rsp.result);
+            fflush(stdout);
+        }
+
+        struct mq_attr attr_req_state;
+        if (mq_getattr(qd_req, &attr_req_state) == -1) {
+            perror("mq_getattr qd_req");
+            break;
+        }
+
+        if (!is_client_alive(client_pid) && attr_req_state.mq_curmsgs == 0) {
+
+            time_t startTime = time(NULL);
+            while (time(NULL) - startTime < 1) {  
+                if (mq_receive(qd_rep, (char *)&rsp, sizeof(rsp), NULL) == -1) {
+                    if (errno == EAGAIN) {
+                        usleep(50000);
+                    } else {
+                        perror("dealer: draining qd_rep");
+                        break;
+                    }
+                } else {
+                    printf("%d -> %d\n", rsp.id, rsp.result);
+                    fflush(stdout);
+                    startTime = time(NULL);
+                }
+            }
+            break;
+        }
     }
-    // printf("client: Client has terminated.\n");
     while (is_process_alive(client_pid)) {
         usleep(1);
     

@@ -56,7 +56,8 @@ int main (int argc, char * argv[])
     {
         usleep(1);
         int hasRequest = getNextRequest(&req.id, &req.input, &req.serviceType); 
-        if (hasRequest) {
+        // printf("%d\n", hasRequest);
+        if (hasRequest == -1) {
             // printf("client: no more requests to send, exiting loop.\n");
             break;
         }
